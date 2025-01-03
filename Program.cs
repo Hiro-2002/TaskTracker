@@ -1,6 +1,4 @@
-﻿
-
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System.Xml;
 
 namespace TaskTracker
@@ -102,7 +100,7 @@ namespace TaskTracker
                                 { "UpdatedAt", task.UpdatedAt.ToString() }
                             };
 
-                            Console.WriteLine(JsonConvert.SerializeObject(taskDict, Formatting.Indented));
+                            Console.WriteLine(JsonConvert.SerializeObject(taskDict, Newtonsoft.Json.Formatting.Indented));
                         }
                     }
                     break;
