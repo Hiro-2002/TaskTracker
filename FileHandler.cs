@@ -9,32 +9,63 @@ namespace TaskTracker
 
         public FileHandler(string filePath)
         {
-            _filePath = filePath;
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("File path cannot be empty", nameof(filePath));
 
+            _filePath = filePath;
             EnsureFileExists();
         }
 
         public void EnsureFileExists()
         {
-            if (!File.Exists(_filePath))
+            try
             {
-                using (StreamWriter sw = new StreamWriter(_filePath))
+                if (!File.Exists(_filePath))
                 {
-                    sw.WriteLine("[]");
-                }
+                    string? directoryPath = Path.GetDirectoryName(_filePath);
+                    if (!string.IsNullOrWhiteSpace(directoryPath))
+                    {
+                        Directory.CreateDirectory(directoryPath);
+                    }
 
-                Console.WriteLine($"File created at: {_filePath}");
+                    using (StreamWriter sw = new StreamWriter(_filePath))
+                    {
+                        sw.WriteLine("[]");
+                    }
+                    Console.WriteLine($"File created at: {Path.GetFullPath(_filePath)}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error creating file: {ex.Message}");
+                throw;
             }
         }
 
         public string ReadFile()
         {
-            return File.ReadAllText(_filePath);
+            try
+            {
+                return File.ReadAllText(_filePath);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error reading file: {ex.Message}");
+                return "[]";
+            }
         }
 
-        public void WriteFile(string filePath)
+        public void WriteFile(string content)
         {
-            File.WriteAllText(_filePath, filePath);
+            try
+            {
+                File.WriteAllText(_filePath, content);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error writing to file: {ex.Message}");
+                throw;
+            }
         }
     }
 }

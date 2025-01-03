@@ -1,4 +1,5 @@
-﻿
+﻿using System.Text.Json.Serialization;
+
 namespace TaskTracker
 {
     // enum for each status of a task
@@ -13,7 +14,10 @@ namespace TaskTracker
     {
         public int Id { get; set; }
         public required string Description { get; set; }
-        public string? Status { get; set; } = "Todo";
+
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public Status Status { get; set; } = Status.Todo;
+
         public DateTime CreatedAt { get; private set; }
         public DateTime UpdatedAt { get; private set; }
 
@@ -23,7 +27,7 @@ namespace TaskTracker
             UpdatedAt = DateTime.Now;
         }
 
-        public void UpdateStatus(string newStatus)
+        public void UpdateStatus(Status newStatus)
         {
             Status = newStatus;
             UpdatedAt = DateTime.Now;

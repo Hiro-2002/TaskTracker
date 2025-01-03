@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json;
-using System.Xml;
+﻿using System.Text.Json;
 
 namespace TaskTracker
 {
@@ -7,14 +6,13 @@ namespace TaskTracker
     {
         static void Main(string[] args)
         {
-            string filePath = @"C:\Users\mhdka\source\repos\TaskTracker\tasks.json";
-            List<string> allowedCmds = new List<string> { "add", "update", "delete", "mark-in-progress", "mark-done", "list" };
-
-            var fileHandler = new FileHandler(filePath);
+            var config = new Configuration();
+            var fileHandler = new FileHandler(config.FilePath);
             var taskManager = new TaskManager(fileHandler);
 
-            // load tasks if no task creates an emtpy list
-            List<Task> tasks = taskManager.LoadTasks();
+
+            List<string> allowedCmds = new List<string> { "add", "update", "delete", "mark-in-progress", "mark-done", "list" };
+
 
             if (args.Length == 0 || !allowedCmds.Contains(args[0].ToLower()))
             {
@@ -22,93 +20,146 @@ namespace TaskTracker
                 return;
             }
 
-            string command = args[0].ToLower();
-
-
-            switch (command)
+            try
             {
-                case "add":
-                    if (args.Length < 2)
-                    {
-                        Console.WriteLine("Usage: add <description>");
-                        return;
-                    }
+                List<Task> tasks = taskManager.LoadTasks();
+                string command = args[0].ToLower();
 
-                    string description = args[1];
-                    int newId = tasks.Any() ? tasks.Max(x => x.Id) + 1 : 1;
+                switch (command)
+                {
+                    case "add":
+                        AddCommand(args, tasks);
+                        break;
 
-                    tasks.Add(new Task { Id = newId, Description = description});
-                    Console.WriteLine($"Task Created!");
-                    break;
+                    case "update":
+                        UpdateCommand(args, tasks);
+                        break;
 
-                case "delete":
-                    if (args.Length < 2)
-                    {
-                        Console.WriteLine("Usage: delete <id>");
-                        return;
-                    }
+                    case "delete":
+                        DeleteCommand(args, tasks);
+                        break;
 
-                    if (int.TryParse(args[1], out int deleteId))
-                    {
-                        var taskToDelete = tasks.FirstOrDefault(x => x.Id == deleteId);
-                        if (taskToDelete != null)
-                        {
-                            tasks.Remove(taskToDelete);
-                            Console.WriteLine($"Task {deleteId} deleted.");
-                        }
-                    }   
-                    break;
+                    case "mark-in-progress":
+                        StatusChange(args, tasks, Status.InProgress);
+                        break;
 
-                case "update":
-                    if (args.Length < 3)
-                    {
-                        Console.WriteLine("Usage: update <id> <description>");
-                        return;
-                    }
+                    case "mark-done":
+                        StatusChange(args, tasks, Status.Done);
+                        break;
 
-                    if (!int.TryParse(args[1], out int updateId))
-                    {
-                        var taskToUpdate = tasks.FirstOrDefault(t => t.Id == updateId);
-                        if (taskToUpdate != null)
-                        {
-                            taskToUpdate.UpdateDescription(args[2]);
-                            Console.WriteLine($"Task {updateId} updated.");
-                        }
-                        else
-                        {
-                            Console.WriteLine("Task not found");
-                        }
-                    }
-                    break;
+                    case "list":
+                        ListCommand(tasks);
+                        break;
 
-                case "list":
-                    if (!tasks.Any())
-                    {
-                        Console.WriteLine("No task found!");
-                    }
-                    else
-                    {
-                        Console.WriteLine("Task List: ");
-                        foreach (var task in tasks)
-                        {
-                            var taskDict = new Dictionary<string, string>
-                            {
-                                { "Id", task.Id.ToString() },
-                                { "Description", task.Description },
-                                { "Status", task.Status.ToString() },
-                                { "CreatedAt", task.CreatedAt.ToString() },
-                                { "UpdatedAt", task.UpdatedAt.ToString() }
-                            };
+                }
+                taskManager.SaveTasks(tasks);
+            } 
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+        }
 
-                            Console.WriteLine(JsonConvert.SerializeObject(taskDict, Newtonsoft.Json.Formatting.Indented));
-                        }
-                    }
-                    break;
-
+        private static void AddCommand(string[] args, List<Task> tasks)
+        {
+            if (args.Length < 2)
+            {
+                Console.WriteLine("Usage: add <description>");
+                return;
             }
 
-            taskManager.SaveTasks(tasks);
+            string description = string.Join(" ", args.Skip(1));
+            int newId = tasks.Any() ? tasks.Max(x => x.Id) + 1 : 1;
 
+            tasks.Add(new Task { Id = newId, Description = description });
+            Console.WriteLine($"Task {newId} created!");
+        }
+
+        private static void UpdateCommand(string[] args, List<Task> tasks)
+        {
+            if (args.Length < 3 || !int.TryParse(args[1], out int updateId))
+            {
+                Console.WriteLine("Usage: update <id> <description>");
+                return;
+            }
+
+            var taskToUpdate = tasks.FirstOrDefault(t => t.Id == updateId);
+            if (taskToUpdate != null)
+            {
+                string newDescription = string.Join(" ", args.Skip(2));
+                taskToUpdate.UpdateDescription(newDescription);
+                Console.WriteLine($"Task {updateId} updated.");
+            }
+            else
+            {
+                Console.WriteLine($"Task {updateId} not found.");
+            }
+        }
+
+        private static void DeleteCommand(string[] args, List<Task> tasks)
+        {
+            if (args.Length < 2 || !int.TryParse(args[1], out int deleteId))
+            {
+                Console.WriteLine("Usage: delete <id>");
+                return;
+            }
+
+            var taskToDelete = tasks.FirstOrDefault(x => x.Id == deleteId);
+            if (taskToDelete != null)
+            {
+                tasks.Remove(taskToDelete);
+                Console.WriteLine($"Task {deleteId} deleted.");
+            }
+            else
+            {
+                Console.WriteLine($"Task {deleteId} not found.");
+            }
+        }
+
+        private static void ListCommand(List<Task> tasks)
+        {
+            if (!tasks.Any())
+            {
+                Console.WriteLine("No tasks found");
+                return;
+            }
+
+            Console.WriteLine("Task List: ");
+            foreach (var task in tasks)
+            {
+                Console.WriteLine(JsonSerializer.Serialize(task, new JsonSerializerOptions { WriteIndented = true }));
+            }
+        }
+
+        private static void StatusChange(string[] args, List<Task> tasks, Status newStatus)
+        {
+            if (args.Length < 2 || !int.TryParse(args[1], out int taskId))
+            {
+                Console.WriteLine($"Usage: {args[0]} <id>");
+                return;
+            }
+
+            var task = tasks.FirstOrDefault(t => t.Id == taskId);
+            if (task != null)
+            {
+                task.UpdateStatus(newStatus);
+                Console.WriteLine($"Task {taskId} marked as {newStatus}.");
+            }
+            else
+            {
+                Console.WriteLine($"Task {taskId} not found.");
+            }
+        }
+    }
+
+    internal class Configuration
+    {
+        public string FilePath { get; }
+
+        public Configuration()
+        {
+            string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            FilePath = Path.Combine(baseDirectory, "tasks.json");
         }
     }
 }
